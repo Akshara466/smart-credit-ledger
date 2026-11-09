@@ -1,0 +1,228 @@
+
+{% extends "base.html" %}
+{% block title %}Our Store | Smart Credit Ledger{% endblock %}
+
+{% block content %}
+<div class="store-header mb-4">
+    <p class="text-uppercase small fw-semibold mb-2">Welcome to our store</p>
+    <h1 class="display-5 fw-bold">Everyday essentials, made simple.</h1>
+    <p class="mb-0">Browse available products, select what you need and contact us to arrange delivery.</p>
+</div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <h2 class="section-title mb-0">Available Products</h2>
+    <input id="productSearch" class="form-control search-input"
+           type="search" placeholder="Search products..." aria-label="Search products">
+</div>
+
+{% if products %}
+<div class="row g-3" id="productGrid">
+    {% for product in products %}
+    <div class="col-12 col-sm-6 col-lg-4 product-card-column"
+         data-name="{{ product.name | lower }}">
+        <div class="product-card h-100">
+            <div class="product-placeholder">🛍️</div>
+            <div class="p-3 d-flex flex-column flex-grow-1">
+                <h3 class="h5">{{ product.name }}</h3>
+                <p class="text-secondary small flex-grow-1">
+                    {{ product.description or "Quality products from our store." }}
+                </p>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="product-price">
+                        ₹{{ "%.2f"|format(product.price) }}/{{ product.unit }}
+                    </span>
+                    <span class="small text-success">{{ product.stock }} available</span>
+                </div>
+                <label class="form-label small" for="qty-{{ product.id }}">Quantity</label>
+                <input id="qty-{{ product.id }}" class="form-control store-qty mb-3"
+                       type="number" min="1" max="{{ product.stock }}"
+                       value="1" data-id="{{ product.id }}"
+                       data-name="{{ product.name }}"
+                       data-price="{{ product.price }}"
+                       data-unit="{{ product.unit }}">
+                <button type="button" class="btn btn-outline-primary add-to-cart"
+                        data-id="{{ product.id }}">Add to selection</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div id="noProducts" class="empty-state d-none">
+    No products match your search.
+</div>
+
+<div class="content-card mt-4" id="selectionPanel">
+    <h2 class="section-title">Your Selection</h2>
+    <div id="cartItems" class="mb-3">
+        <p class="text-secondary">You haven't selected any products yet.</p>
+    </div>
+    <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
+        <strong>Estimated total</strong>
+        <strong class="fs-4" id="cartTotal">₹0.00</strong>
+    </div>
+    <p class="small text-secondary">
+        This is a request for products, not a confirmed order. The shop will confirm
+        availability, final price and delivery arrangements with you.
+    </p>
+    <button id="contactShop" class="btn btn-success" type="button">
+        Contact Shop About Selection
+    </button>
+    <p id="contactMessage" class="small text-secondary mt-2"></p>
+</div>
+{% else %}
+<div class="empty-state">
+    <h3>Our catalog is being prepared.</h3>
+    <p>Please check back later for available products and prices.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const cart = new Map();
+
+// Replace this placeholder with the shop's WhatsApp number,
+// including country code, using digits only. Example: 919876543210.
+const SHOP_WHATSAPP_NUMBER = "REPLACE_WITH_SHOP_PHONE";
+
+const money = value => "₹" + value.toFixed(2);
+
+function renderCart() {
+    const cartItems = document.getElementById("cartItems");
+    const totalDisplay = document.getElementById("cartTotal");
+    if (!cartItems || !totalDisplay) return;
+
+    cartItems.replaceChildren();
+    let total = 0;
+
+    if (cart.size === 0) {
+        const message = document.createElement("p");
+        message.className = "text-secondary";
+        message.textContent = "You haven't selected any products yet.";
+        cartItems.appendChild(message);
+    }
+
+    cart.forEach((item, id) => {
+        const lineTotal = item.price * item.quantity;
+        total += lineTotal;
+
+        const row = document.createElement("div");
+        row.className = "d-flex justify-content-between align-items-center gap-3 py-2";
+
+        const description = document.createElement("span");
+        description.textContent =
+            `${item.name} × ${item.quantity} ${item.unit}`;
+
+        const right = document.createElement("div");
+        right.className = "d-flex align-items-center gap-3";
+
+        const amount = document.createElement("strong");
+        amount.textContent = money(lineTotal);
+
+        const remove = document.createElement("button");
+        remove.className = "btn btn-sm btn-outline-danger";
+        remove.type = "button";
+        remove.textContent = "Remove";
+        remove.addEventListener("click", () => {
+            cart.delete(id);
+            renderCart();
+        });
+
+        right.append(amount, remove);
+        row.append(description, right);
+        cartItems.appendChild(row);
+    });
+
+    totalDisplay.textContent = money(total);
+}
+
+document.querySelectorAll(".add-to-cart").forEach(button => {
+    button.addEventListener("click", () => {
+        const id = button.dataset.id;
+        const input = document.getElementById("qty-" + id);
+        const quantity = Number(input.value);
+        const stock = Number(input.max);
+
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > stock) {
+            alert("Please enter a valid quantity within available stock.");
+            return;
+        }
+
+        const item = {
+            name: input.dataset.name,
+            price: Number(input.dataset.price),
+            unit: input.dataset.unit,
+            quantity: quantity
+        };
+
+        if (cart.has(id)) {
+            item.quantity += cart.get(id).quantity;
+        }
+
+        if (item.quantity > stock) {
+            alert("The selected quantity exceeds available stock.");
+            return;
+        }
+
+        cart.set(id, item);
+        renderCart();
+    });
+});
+
+const search = document.getElementById("productSearch");
+if (search) {
+    search.addEventListener("input", () => {
+        const term = search.value.trim().toLowerCase();
+        let visible = 0;
+
+        document.querySelectorAll(".product-card-column").forEach(card => {
+            const show = card.dataset.name.includes(term);
+            card.classList.toggle("d-none", !show);
+            if (show) visible++;
+        });
+
+        document.getElementById("noProducts")
+            .classList.toggle("d-none", visible !== 0);
+    });
+}
+
+const contactButton = document.getElementById("contactShop");
+if (contactButton) {
+    contactButton.addEventListener("click", () => {
+        const messageElement = document.getElementById("contactMessage");
+
+        if (cart.size === 0) {
+            messageElement.textContent = "Please select at least one product first.";
+            return;
+        }
+
+        if (!/^\d{10,15}$/.test(SHOP_WHATSAPP_NUMBER)) {
+            messageElement.textContent =
+                "The shop contact number has not been configured yet. " +
+                "Update SHOP_WHATSAPP_NUMBER in store.html first.";
+            return;
+        }
+
+        let message = "Hello! I would like to enquire about these products:\n";
+        let total = 0;
+
+        cart.forEach(item => {
+            const line = item.price * item.quantity;
+            total += line;
+            message += `- ${item.name}: ${item.quantity} ${item.unit} = ${money(line)}\n`;
+        });
+
+        message += `\nEstimated total: ${money(total)}\n`;
+        message += "Please confirm availability and delivery details.";
+
+        const url = "https://wa.me/" + SHOP_WHATSAPP_NUMBER +
+            "?text=" + encodeURIComponent(message);
+
+        window.open(url, "_blank", "noopener,noreferrer");
+    });
+}
+
+renderCart();
+</script>
+{% endblock %}

@@ -1,0 +1,232 @@
+
+{% extends "base.html" %}
+{% block title %}Record Purchase | Smart Credit Ledger{% endblock %}
+
+{% block content %}
+<div class="form-card wide-form">
+    <h1 class="page-title">Record Purchase</h1>
+    <p class="text-secondary">Select a customer and record everything they bought.</p>
+
+    {% if not customers %}
+    <div class="alert alert-warning">
+        Please add a customer first.
+        <a href="/add-customer">Add customer</a>
+    </div>
+    {% elif not products %}
+    <div class="alert alert-warning">
+        No available products with stock were found.
+        <a href="/products">Add products and stock</a> first.
+    </div>
+    {% else %}
+    <form action="/add-purchase" method="post" id="purchaseForm">
+        <div class="row g-3 mb-3">
+            <div class="col-md-7">
+                <label class="form-label" for="customer_id">Customer *</label>
+                <select class="form-select" id="customer_id" name="customer_id" required>
+                    <option value="">Select customer</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}"
+                        {% if selected_customer_id == customer.id %}selected{% endif %}>
+                        {{ customer.name }}{% if customer.phone %} — {{ customer.phone }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label" for="sale_date">Purchase Date *</label>
+                <input type="date" class="form-control" id="sale_date"
+                       name="sale_date" value="{{ today }}" required>
+            </div>
+        </div>
+
+        <h2 class="section-title mt-4">Items Purchased</h2>
+        <div id="itemsContainer"></div>
+
+        <button type="button" class="btn btn-outline-primary mb-4"
+                id="addItemButton">+ Add Another Item</button>
+
+        <div class="summary-panel mb-3">
+            <div class="d-flex justify-content-between mb-2">
+                <span>Purchase total</span>
+                <strong id="totalDisplay">₹0.00</strong>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <span>Paid today</span>
+                <strong id="paidDisplay">₹0.00</strong>
+            </div>
+            <div class="d-flex justify-content-between fs-5">
+                <span>Credit remaining</span>
+                <strong id="balanceDisplay">₹0.00</strong>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label" for="paid_now">Amount Paid Today (₹)</label>
+            <input type="number" class="form-control" id="paid_now"
+                   name="paid_now" value="0" min="0" step="0.01" required>
+            <div class="form-text">Enter zero if the customer is buying on credit.</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg">Save Purchase</button>
+        <a href="/customers" class="btn btn-outline-secondary btn-lg">Cancel</a>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const products = [
+    {% for product in products %}
+    {
+        id: {{ product.id }},
+        name: {{ product.name | tojson }},
+        price: {{ product.price | float }},
+        unit: {{ product.unit | tojson }},
+        stock: {{ product.stock }}
+    },
+    {% endfor %}
+];
+
+const container = document.getElementById("itemsContainer");
+
+if (container) {
+    const addButton = document.getElementById("addItemButton");
+    const paidInput = document.getElementById("paid_now");
+
+    function formatMoney(value) {
+        return "₹" + value.toFixed(2);
+    }
+
+    function addRow() {
+        const row = document.createElement("div");
+        row.className = "purchase-line";
+
+        const label = document.createElement("label");
+        label.className = "form-label";
+        label.textContent = "Product";
+
+        const select = document.createElement("select");
+        select.name = "product_ids";
+        select.className = "form-select product-select";
+        select.required = true;
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Choose a product";
+        select.appendChild(placeholder);
+
+        products.forEach(product => {
+            const option = document.createElement("option");
+            option.value = product.id;
+            option.textContent =
+                `${product.name} — ₹${product.price.toFixed(2)}/${product.unit} (Stock: ${product.stock})`;
+            option.dataset.price = product.price;
+            option.dataset.stock = product.stock;
+            select.appendChild(option);
+        });
+
+        const qtyLabel = document.createElement("label");
+        qtyLabel.className = "form-label";
+        qtyLabel.textContent = "Quantity";
+
+        const qty = document.createElement("input");
+        qty.type = "number";
+        qty.name = "quantities";
+        qty.className = "form-control quantity-input";
+        qty.value = "1";
+        qty.min = "1";
+        qty.step = "1";
+        qty.required = true;
+
+        const lineTotal = document.createElement("div");
+        lineTotal.className = "line-total fw-semibold";
+        lineTotal.textContent = "₹0.00";
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "btn btn-outline-danger btn-sm remove-line";
+        remove.textContent = "Remove";
+        remove.addEventListener("click", () => {
+            row.remove();
+            calculate();
+        });
+
+        select.addEventListener("change", calculate);
+        qty.addEventListener("input", calculate);
+
+        row.append(label, select, qtyLabel, qty, lineTotal, remove);
+        container.appendChild(row);
+        calculate();
+    }
+
+    function calculate() {
+        let total = 0;
+
+        container.querySelectorAll(".purchase-line").forEach(row => {
+            const select = row.querySelector(".product-select");
+            const qty = row.querySelector(".quantity-input");
+            const option = select.selectedOptions[0];
+            const price = option && option.dataset.price
+                ? Number(option.dataset.price) : 0;
+            const quantity = Math.max(0, Number(qty.value) || 0);
+            const line = price * quantity;
+
+            row.querySelector(".line-total").textContent = formatMoney(line);
+            total += line;
+        });
+
+        const paid = Math.max(0, Number(paidInput.value) || 0);
+        document.getElementById("totalDisplay").textContent = formatMoney(total);
+        document.getElementById("paidDisplay").textContent = formatMoney(paid);
+        document.getElementById("balanceDisplay").textContent =
+            formatMoney(total - Math.min(total, paid));
+    }
+
+    addButton.addEventListener("click", addRow);
+    paidInput.addEventListener("input", calculate);
+
+    document.getElementById("purchaseForm").addEventListener("submit", event => {
+        const rows = container.querySelectorAll(".purchase-line");
+        if (!rows.length) {
+            event.preventDefault();
+            alert("Add at least one item.");
+            return;
+        }
+
+        for (const row of rows) {
+            const select = row.querySelector(".product-select");
+            const qty = row.querySelector(".quantity-input");
+            const option = select.selectedOptions[0];
+
+            if (!select.value || Number(qty.value) < 1 ||
+                !Number.isInteger(Number(qty.value))) {
+                event.preventDefault();
+                alert("Choose a product and enter a valid whole-number quantity.");
+                return;
+            }
+
+            if (Number(qty.value) > Number(option.dataset.stock)) {
+                event.preventDefault();
+                alert("Quantity exceeds available stock for " + option.textContent);
+                return;
+            }
+        }
+
+        const total = Array.from(container.querySelectorAll(".purchase-line"))
+            .reduce((sum, row) => {
+                const option = row.querySelector(".product-select").selectedOptions[0];
+                return sum + Number(option.dataset.price) *
+                    Number(row.querySelector(".quantity-input").value);
+            }, 0);
+
+        if (Number(paidInput.value) > total) {
+            event.preventDefault();
+            alert("Payment cannot exceed the purchase total.");
+        }
+    });
+
+    addRow();
+}
+</script>
+{% endblock %}

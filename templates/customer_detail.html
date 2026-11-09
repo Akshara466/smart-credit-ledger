@@ -1,0 +1,127 @@
+
+{% extends "base.html" %}
+{% block title %}{{ customer.name }} | Customer Ledger{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <a href="/customers" class="small">← Back to customers</a>
+        <h1 class="page-title mt-2">{{ customer.name }}</h1>
+        <p class="text-secondary mb-0">
+            {{ customer.phone or "No phone number" }}
+            {% if customer.village %} · {{ customer.village }}{% endif %}
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="/add-purchase?customer_id={{ customer.id }}"
+           class="btn btn-primary">+ Purchase</a>
+        <a href="/add-payment?customer_id={{ customer.id }}"
+           class="btn btn-success">Record Payment</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-label">Purchases / Credit</div>
+            <div class="stat-value">₹{{ "%.2f"|format(ledger.total_credit) }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-label">Paid</div>
+            <div class="stat-value text-success">₹{{ "%.2f"|format(ledger.payment_total) }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-label">Amount Owed</div>
+            <div class="stat-value {% if ledger.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                ₹{{ "%.2f"|format(ledger.balance) }}
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-label">Status</div>
+            <div class="stat-value fs-4">
+                {% if ledger.balance > 0 %}Credit Due{% else %}Settled{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="content-card mb-4">
+    <h2 class="section-title">Purchase History</h2>
+    {% if sales %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+            <tr><th>Date</th><th>Items</th><th>Total</th><th>Purchase ID</th></tr>
+            </thead>
+            <tbody>
+            {% for sale in sales %}
+            <tr>
+                <td>{{ sale.sale_date.strftime("%d %b %Y") }}</td>
+                <td>
+                    {% for item in sale.items %}
+                    <div>{{ item.item_name }} × {{ item.quantity }}
+                        <span class="text-secondary small">
+                            (₹{{ "%.2f"|format(item.line_total) }})
+                        </span>
+                    </div>
+                    {% endfor %}
+                </td>
+                <td class="fw-semibold">₹{{ "%.2f"|format(sale.total_amount) }}</td>
+                <td>#{{ sale.id }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No new purchase records yet.</p>
+    {% endif %}
+
+    {% if legacy_credits %}
+    <h3 class="section-title mt-4">Previous Credit Records</h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Item</th><th>Original Amount</th></tr></thead>
+            <tbody>
+            {% for credit in legacy_credits %}
+            <tr>
+                <td>{{ credit.item }}</td>
+                <td>₹{{ "%.2f"|format(credit.amount) }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<div class="content-card">
+    <h2 class="section-title">Payment History</h2>
+    {% if payments %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead><tr><th>Date</th><th>Notes</th><th>Amount Received</th></tr></thead>
+            <tbody>
+            {% for payment in payments %}
+            <tr>
+                <td>{{ payment.payment_date.strftime("%d %b %Y") }}</td>
+                <td>{{ payment.notes or "Payment received" }}</td>
+                <td class="text-success fw-semibold">
+                    ₹{{ "%.2f"|format(payment.amount) }}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No payments recorded yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

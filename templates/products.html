@@ -1,0 +1,108 @@
+
+{% extends "base.html" %}
+{% block title %}Manage Products | Smart Credit Ledger{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Product Management</h1>
+<p class="text-secondary mb-4">Manage the items customers can buy from your store.</p>
+
+<div class="content-card mb-4">
+    <h2 class="section-title">Add Product</h2>
+    <form action="/products/add" method="post">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label" for="name">Product Name *</label>
+                <input class="form-control" id="name" name="name" required maxlength="150">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="description">Description</label>
+                <input class="form-control" id="description" name="description" maxlength="500">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="price">Price (₹) *</label>
+                <input class="form-control" type="number" id="price" name="price"
+                       min="0.01" step="0.01" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="stock">Available Stock *</label>
+                <input class="form-control" type="number" id="stock" name="stock"
+                       min="0" step="1" value="0" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="unit">Unit *</label>
+                <select class="form-select" id="unit" name="unit">
+                    <option value="piece">Piece</option>
+                    <option value="kg">Kilogram (kg)</option>
+                    <option value="g">Gram (g)</option>
+                    <option value="L">Litre (L)</option>
+                    <option value="ml">Millilitre (ml)</option>
+                    <option value="packet">Packet</option>
+                    <option value="box">Box</option>
+                </select>
+            </div>
+        </div>
+        <button class="btn btn-primary mt-3" type="submit">Add Product</button>
+    </form>
+</div>
+
+<div class="content-card">
+    <h2 class="section-title">All Products</h2>
+    {% if products %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+            <tr>
+                <th>Product</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Public Store</th>
+                <th>Update</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for product in products %}
+            <tr>
+                <td>
+                    <strong>{{ product.name }}</strong>
+                    {% if product.description %}
+                    <div class="small text-secondary">{{ product.description }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <form id="product-{{ product.id }}"
+                          action="/products/{{ product.id }}/update" method="post">
+                        <input class="form-control form-control-sm" type="number"
+                               name="price" min="0.01" step="0.01"
+                               value="{{ product.price }}" required>
+                    </form>
+                </td>
+                <td>
+                    <input class="form-control form-control-sm" type="number"
+                           name="stock" min="0" step="1" value="{{ product.stock }}"
+                           form="product-{{ product.id }}" required>
+                </td>
+                <td>
+                    <label class="d-flex gap-2 align-items-center">
+                        <input type="checkbox" name="is_available" value="yes"
+                               form="product-{{ product.id }}"
+                               {% if product.is_available %}checked{% endif %}>
+                        <span class="small">
+                            {% if product.is_available %}Available{% else %}Hidden{% endif %}
+                        </span>
+                    </label>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary"
+                            type="submit" form="product-{{ product.id }}">Save</button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No products added yet. Add your first product above.</p>
+    {% endif %}
+    <a href="/store" class="btn btn-outline-secondary mt-2">Preview Public Store</a>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+
+{% extends "base.html" %}
+{% block title %}Record Payment | Smart Credit Ledger{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    <h1 class="page-title">Record Payment</h1>
+    <p class="text-secondary">Record money received from a customer.</p>
+
+    {% if not customers %}
+    <div class="alert alert-warning">
+        No customers found. <a href="/add-customer">Add a customer</a> first.
+    </div>
+    {% else %}
+    <form action="/add-payment" method="post">
+        <div class="mb-3">
+            <label class="form-label" for="customer_id">Customer *</label>
+            <select class="form-select" id="customer_id" name="customer_id" required>
+                <option value="">Select customer</option>
+                {% for customer in customers %}
+                <option value="{{ customer.id }}"
+                    {% if selected_customer_id == customer.id %}selected{% endif %}>
+                    {{ customer.name }}{% if customer.phone %} — {{ customer.phone }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="amount">Amount Received (₹) *</label>
+            <input class="form-control" type="number" id="amount" name="amount"
+                   min="0.01" step="0.01" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="payment_date">Payment Date *</label>
+            <input class="form-control" type="date" id="payment_date"
+                   name="payment_date" value="{{ today }}" required>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label" for="notes">Notes</label>
+            <input class="form-control" id="notes" name="notes"
+                   maxlength="250" placeholder="e.g. Cash payment">
+        </div>
+
+        <button type="submit" class="btn btn-success">Save Payment</button>
+        <a href="/customers" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+
+{% extends "base.html" %}
+{% block title %}Customers | Smart Credit Ledger{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="page-title">Customers</h1>
+        <p class="text-secondary mb-0">Search customers and check their balances.</p>
+    </div>
+    <a href="/add-customer" class="btn btn-primary">+ Add Customer</a>
+</div>
+
+<form action="/customers" method="get" class="search-bar mb-4">
+    <input type="search" name="query" class="form-control"
+           value="{{ query }}" placeholder="Search by name or phone...">
+    <button class="btn btn-primary" type="submit">Search</button>
+    {% if query %}<a class="btn btn-outline-secondary" href="/customers">Clear</a>{% endif %}
+</form>
+
+<div class="content-card">
+    {% if rows %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+            <tr>
+                <th>Customer</th>
+                <th>Phone</th>
+                <th>Total Purchases / Credit</th>
+                <th>Payments</th>
+                <th>Balance Due</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>
+                    <a class="fw-semibold" href="/customers/{{ row.customer.id }}">
+                        {{ row.customer.name }}
+                    </a>
+                    {% if row.customer.village %}
+                    <div class="small text-secondary">{{ row.customer.village }}</div>
+                    {% endif %}
+                </td>
+                <td>{{ row.customer.phone or "—" }}</td>
+                <td>₹{{ "%.2f"|format(row.total_credit) }}</td>
+                <td class="text-success">₹{{ "%.2f"|format(row.payment_total) }}</td>
+                <td>
+                    {% if row.balance > 0 %}
+                    <span class="balance-badge">₹{{ "%.2f"|format(row.balance) }}</span>
+                    {% else %}
+                    <span class="paid-badge">Settled</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a class="btn btn-sm btn-outline-primary"
+                       href="/customers/{{ row.customer.id }}">View</a>
+                    <a class="btn btn-sm btn-outline-success"
+                       href="/add-payment?customer_id={{ row.customer.id }}">Pay</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h3>No customers found</h3>
+        <p>Try another search or register a new customer.</p>
+        <a href="/add-customer" class="btn btn-primary">Add Customer</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
